@@ -1,0 +1,4 @@
+
+[29-May-2026 10:17:19 UTC] PHP Notice:  session_start(): Ignoring session_start() because a session is already active (started from /home/digitalprofit.my.id/app.reqra.my.id/jwd/pesan.php on line 2) in /home/digitalprofit.my.id/app.reqra.my.id/jwd/auth_checkwa.php on line 2
+[29-May-2026 10:17:22 UTC] PHP Notice:  session_start(): Ignoring session_start() because a session is already active (started from /home/digitalprofit.my.id/app.reqra.my.id/jwd/pesan.php on line 2) in /home/digitalprofit.my.id/app.reqra.my.id/jwd/auth_checkwa.php on line 2
+[29-May-2026 10:17:26 UTC] PHP Notice:  session_start(): Ignoring session_start() because a session is already active (started from /home/digitalprofit.my.id/app.reqra.my.id/jwd/pesan.php on line 2) in /home/digitalprofit.my.id/app.reqra.my.id/jwd/auth_checkwa.php on line 2
