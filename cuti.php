@@ -77,34 +77,37 @@ $sql = "
     )
 ";
 
-// Jika tidak ada filter tanggal, setel ke 30 hari terakhir agar database ringan
+/// Jika tidak ada filter tanggal, JANGAN load semua data (Pencegah Error 500)
+// Setel ke 30 hari terakhir agar ringan
 if (empty($f_start) && empty($f_end)) {
     $f_start = date('Y-m-d', strtotime('-30 days'));
 }
 
-if (!empty($f_start)) {
+// Tambah filter tanggal
+if ($f_start) {
     $sql .= " AND DATE(lw.created_at) >= '" . $conn->real_escape_string($f_start) . "'";
 }
-if (!empty($f_end)) {
+if ($f_end) {
     $sql .= " AND DATE(lw.created_at) <= '" . $conn->real_escape_string($f_end) . "'";
 }
 
+// Tambah filter status
 if ($f_status === 'cuti') {
-    $sql .= " AND (lw.message LIKE '%cuti%' OR lw.message LIKE '%pause%' OR lw.message LIKE '%izin%')";
+    $sql .= " AND (LOWER(lw.message) LIKE '%cuti%' OR LOWER(lw.message) LIKE '%pause%' OR LOWER(lw.message) LIKE '%izin%')";
 } elseif ($f_status === 'tidak_lanjut') {
-    $sql .= " AND (lw.message LIKE '%tidak lanjut%' OR lw.message LIKE '%gak lanjut%' OR lw.message LIKE '%berhenti%')";
+    $sql .= " AND (LOWER(lw.message) LIKE '%tidak lanjut%' OR LOWER(lw.message) LIKE '%gak lanjut%' OR LOWER(lw.message) LIKE '%berhenti%')";
 }
 
-if (!empty($search)) {
+// Tambah pencarian
+if ($search) {
     $search_escaped = $conn->real_escape_string($search);
-    $sql .= " AND (lw.nama LIKE '%" . $search_escaped . "%' 
+    $sql .= " AND (LOWER(lw.nama) LIKE '%" . strtolower($search_escaped) . "%' 
                 OR lw.nowa LIKE '%" . $search_escaped . "%'
                 OR p.halaqoh LIKE '%" . $search_escaped . "%'
-                OR pg1.nama LIKE '%" . $search_escaped . "%'
-                OR pg2.nama LIKE '%" . $search_escaped . "%')";
+                OR pg.nama LIKE '%" . $search_escaped . "%')";
 }
 
-// WAJIB: ORDER BY dan LIMIT diletakkan HANYA SEKALI di posisi paling akhir!
+// Tutup query SATU KALI SAJA di bagian paling akhir
 $sql .= " ORDER BY lw.created_at DESC LIMIT 500";
 
 $result = $conn->query($sql);
