@@ -1,12 +1,4 @@
 <?php
-// ==================================================================
-// 1. PENGATURAN LOG ERROR (PRODUCTION MODE)
-// ==================================================================
-error_reporting(E_ALL);
-ini_set('display_errors', 0); 
-ini_set('log_errors', 1);
-ini_set('error_log', __DIR__ . '/php_errors.log');
-
 if (session_status() === PHP_SESSION_NONE) {
     session_start();
 }
@@ -47,14 +39,14 @@ if ($pengampuResult) {
 }
 
 // ==================================================================
-// FILTER & PENCARIAN
+// FILTER & PENCARIAN (Keamanan Variabel)
 // ==================================================================
-$f_start = $_GET['from'] ?? '';
-$f_end = $_GET['to'] ?? '';
-$f_status = $_GET['status'] ?? ''; 
-$search = $_GET['search'] ?? '';
+$f_start = is_string($_GET['from'] ?? null) ? $_GET['from'] : '';
+$f_end = is_string($_GET['to'] ?? null) ? $_GET['to'] : '';
+$f_status = is_string($_GET['status'] ?? null) ? $_GET['status'] : ''; 
+$search = is_string($_GET['search'] ?? null) ? $_GET['search'] : '';
 
-// BUILD QUERY UTAMA (DI-OPTIMASI UNTUK MENCEGAH ERROR 500/TIMEOUT)
+// BUILD QUERY UTAMA
 $sql = "
     SELECT 
         lw.id,
@@ -80,28 +72,24 @@ $sql = "
     )
 ";
 
-// Jika tidak ada filter tanggal, JANGAN load semua data (Pencegah Error 500)
-// Setel ke 30 hari terakhir agar ringan
 if (empty($f_start) && empty($f_end)) {
     $f_start = date('Y-m-d', strtotime('-30 days'));
 }
 
-// Tambah filter tanggal
+// OPTIMASI: Ganti fungsi DATE() dengan format DateTime agar MySQL Index berfungsi (Anti Timeout)
 if ($f_start) {
-    $sql .= " AND DATE(lw.created_at) >= '" . $conn->real_escape_string($f_start) . "'";
+    $sql .= " AND lw.created_at >= '" . $conn->real_escape_string($f_start) . " 00:00:00'";
 }
 if ($f_end) {
-    $sql .= " AND DATE(lw.created_at) <= '" . $conn->real_escape_string($f_end) . "'";
+    $sql .= " AND lw.created_at <= '" . $conn->real_escape_string($f_end) . " 23:59:59'";
 }
 
-// Tambah filter status
 if ($f_status === 'cuti') {
     $sql .= " AND (LOWER(lw.message) LIKE '%cuti%' OR LOWER(lw.message) LIKE '%pause%' OR LOWER(lw.message) LIKE '%izin%')";
 } elseif ($f_status === 'tidak_lanjut') {
     $sql .= " AND (LOWER(lw.message) LIKE '%tidak lanjut%' OR LOWER(lw.message) LIKE '%gak lanjut%' OR LOWER(lw.message) LIKE '%berhenti%')";
 }
 
-// Tambah pencarian (BUG PENCARIAN SUDAH DIPERBAIKI)
 if ($search) {
     $search_escaped = $conn->real_escape_string($search);
     $sql .= " AND (LOWER(lw.nama) LIKE '%" . strtolower($search_escaped) . "%' 
@@ -111,10 +99,24 @@ if ($search) {
                 OR LOWER(pg2.nama) LIKE '%" . strtolower($search_escaped) . "%')";
 }
 
-// Tutup query SATU KALI SAJA di bagian paling akhir
 $sql .= " ORDER BY lw.created_at DESC LIMIT 500";
 
-$result = $conn->query($sql);
+// EKSEKUSI AMAN DENGAN PENANGKAP ERROR (ANTI ERROR 500)
+try {
+    $result = $conn->query($sql);
+    if (!$result) {
+        throw new Exception($conn->error);
+    }
+} catch (Throwable $e) {
+    // Jika masih ada error dari database, layar tidak akan blank 500, melainkan mencetak kotak merah berisi detail error!
+    die("<div style='padding:20px; background:#fee2e2; color:#991b1b; border-radius:8px; margin:20px; font-family:sans-serif;'>
+            <h3 style='margin-top:0;'>⚠️ CRITICAL DATABASE ERROR</h3>
+            <p><strong>Pesan MySQL:</strong> " . htmlspecialchars($e->getMessage()) . "</p>
+            <p><strong>Query yang Gagal:</strong></p>
+            <pre style='background:#fff; padding:15px; border:1px solid #fca5a5; overflow-x:auto; font-size:12px;'>" . htmlspecialchars($sql) . "</pre>
+         </div>");
+}
+
 $dataRows = [];
 $countCuti = 0;
 $countTidakLanjut = 0;
