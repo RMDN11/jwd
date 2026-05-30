@@ -43,6 +43,7 @@ if ($pengampuResult) {
 }
 
 // ==================================================================
+// ==================================================================
 // FILTER & PENCARIAN
 // ==================================================================
 $f_start = $_GET['from'] ?? '';
@@ -50,7 +51,7 @@ $f_end = $_GET['to'] ?? '';
 $f_status = $_GET['status'] ?? ''; // 'cuti' atau 'tidak_lanjut'
 $search = $_GET['search'] ?? '';
 
-// Build query untuk mendapatkan data dengan JOIN
+// BUILD QUERY UTAMA
 $sql = "
     SELECT 
         lw.id,
@@ -62,25 +63,50 @@ $sql = "
         pg.nama as nama_pengajar,
         pg.halaqoh as pengajar_halaqoh
     FROM log_wa lw
-    LEFT JOIN peserta p ON (
-        REPLACE(REPLACE(REPLACE(lw.nowa, '-', ''), ' ', ''), '+62', '0') = REPLACE(REPLACE(REPLACE(p.nowa, '-', ''), ' ', ''), '+62', '0')
-        OR REPLACE(REPLACE(REPLACE(p.nowa, '-', ''), ' ', ''), '+62', '0') = REPLACE(REPLACE(REPLACE(lw.nowa, '-', ''), ' ', ''), '+62', '0')
-    )
-    LEFT JOIN pengampu pg ON (
-        p.halaqoh = pg.halaqoh OR 
-        lw.nowa = pg.nowa OR
-        REPLACE(REPLACE(REPLACE(lw.nowa, '-', ''), ' ', ''), '+62', '0') = REPLACE(REPLACE(REPLACE(pg.nowa, '-', ''), ' ', ''), '+62', '0')
-    )
+    LEFT JOIN peserta p ON p.nowa = lw.nowa
+    LEFT JOIN pengampu pg ON (p.halaqoh = pg.halaqoh OR pg.nowa = lw.nowa)
     WHERE (
-        LOWER(lw.message) LIKE '%cuti%' 
-        OR LOWER(lw.message) LIKE '%tidak lanjut%'
-        OR LOWER(lw.message) LIKE '%gak lanjut%'
-        OR LOWER(lw.message) LIKE '%berhenti%'
-        OR LOWER(lw.message) LIKE '%pause%'
-        OR LOWER(lw.message) LIKE '%izin tidak%'
+        lw.message LIKE '%cuti%' 
+        OR lw.message LIKE '%tidak lanjut%'
+        OR lw.message LIKE '%gak lanjut%'
+        OR lw.message LIKE '%berhenti%'
+        OR lw.message LIKE '%pause%'
+        OR lw.message LIKE '%izin tidak%'
     )
 ";
 
+// Jika tidak ada filter tanggal, JANGAN load semua data (Pencegah Error 500)
+// Setel ke 30 hari terakhir agar ringan
+if (empty($f_start) && empty($f_end)) {
+    $f_start = date('Y-m-d', strtotime('-30 days'));
+}
+
+// Tambah filter tanggal
+if ($f_start) {
+    $sql .= " AND DATE(lw.created_at) >= '" . $conn->real_escape_string($f_start) . "'";
+}
+if ($f_end) {
+    $sql .= " AND DATE(lw.created_at) <= '" . $conn->real_escape_string($f_end) . "'";
+}
+
+// Tambah filter status
+if ($f_status === 'cuti') {
+    $sql .= " AND (lw.message LIKE '%cuti%' OR lw.message LIKE '%pause%' OR lw.message LIKE '%izin%')";
+} elseif ($f_status === 'tidak_lanjut') {
+    $sql .= " AND (lw.message LIKE '%tidak lanjut%' OR lw.message LIKE '%gak lanjut%' OR lw.message LIKE '%berhenti%')";
+}
+
+// Tambah pencarian
+if ($search) {
+    $search_escaped = $conn->real_escape_string($search);
+    $sql .= " AND (lw.nama LIKE '%" . $search_escaped . "%' 
+                OR lw.nowa LIKE '%" . $search_escaped . "%'
+                OR p.halaqoh LIKE '%" . $search_escaped . "%'
+                OR pg.nama LIKE '%" . $search_escaped . "%')";
+}
+
+// Tambahkan LIMIT untuk mencegah memori server meledak (Error 500)
+$sql .= " ORDER BY lw.created_at DESC LIMIT 500";
 // Tambah filter tanggal
 if ($f_start) {
     $sql .= " AND DATE(lw.created_at) >= '" . $conn->real_escape_string($f_start) . "'";
