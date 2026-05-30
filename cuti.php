@@ -54,9 +54,9 @@ $sql = "
         pg1.halaqoh as pengajar_halaqoh,
         pg2.nama as pengajar_langsung
     FROM log_wa lw
-    LEFT JOIN peserta p ON p.nowa = lw.nowa
-    LEFT JOIN pengampu pg1 ON (p.halaqoh = pg1.halaqoh AND p.halaqoh != '')
-    LEFT JOIN pengampu pg2 ON (pg2.nowa = lw.nowa AND pg2.nowa != '')
+    LEFT JOIN peserta p ON p.nowa = lw.nowa COLLATE utf8mb4_unicode_ci
+    LEFT JOIN pengampu pg1 ON (p.halaqoh = pg1.halaqoh COLLATE utf8mb4_unicode_ci AND p.halaqoh != '')
+    LEFT JOIN pengampu pg2 ON (pg2.nowa = lw.nowa COLLATE utf8mb4_unicode_ci AND pg2.nowa != '')
     WHERE 1=1 
     AND (
         lw.message LIKE '%cuti%' OR lw.message LIKE '%tidak lanjut%'
