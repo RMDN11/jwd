@@ -104,7 +104,8 @@ if ($search) {
     $sql .= " AND (LOWER(lw.nama) LIKE '%" . strtolower($search_escaped) . "%' 
                 OR lw.nowa LIKE '%" . $search_escaped . "%'
                 OR p.halaqoh LIKE '%" . $search_escaped . "%'
-                OR pg.nama LIKE '%" . $search_escaped . "%')";
+                OR LOWER(pg1.nama) LIKE '%" . strtolower($search_escaped) . "%'
+                OR LOWER(pg2.nama) LIKE '%" . strtolower($search_escaped) . "%')";
 }
 
 // Tutup query SATU KALI SAJA di bagian paling akhir
