@@ -48,10 +48,10 @@ if ($pengampuResult) {
 // ==================================================================
 $f_start = $_GET['from'] ?? '';
 $f_end = $_GET['to'] ?? '';
-$f_status = $_GET['status'] ?? ''; // 'cuti' atau 'tidak_lanjut'
+$f_status = $_GET['status'] ?? ''; 
 $search = $_GET['search'] ?? '';
 
-// BUILD QUERY UTAMA
+// BUILD QUERY UTAMA (DI-OPTIMASI UNTUK MENCEGAH ERROR 500/TIMEOUT)
 $sql = "
     SELECT 
         lw.id,
@@ -60,11 +60,13 @@ $sql = "
         lw.message,
         lw.created_at,
         p.halaqoh as peserta_halaqoh,
-        pg.nama as nama_pengajar,
-        pg.halaqoh as pengajar_halaqoh
+        pg1.nama as nama_pengajar,
+        pg1.halaqoh as pengajar_halaqoh,
+        pg2.nama as pengajar_langsung
     FROM log_wa lw
     LEFT JOIN peserta p ON p.nowa = lw.nowa
-    LEFT JOIN pengampu pg ON (p.halaqoh = pg.halaqoh OR pg.nowa = lw.nowa)
+    LEFT JOIN pengampu pg1 ON (p.halaqoh = pg1.halaqoh AND p.halaqoh != '')
+    LEFT JOIN pengampu pg2 ON (pg2.nowa = lw.nowa AND pg2.nowa != '')
     WHERE (
         lw.message LIKE '%cuti%' 
         OR lw.message LIKE '%tidak lanjut%'
@@ -75,63 +77,35 @@ $sql = "
     )
 ";
 
-// Jika tidak ada filter tanggal, JANGAN load semua data (Pencegah Error 500)
-// Setel ke 30 hari terakhir agar ringan
+// Jika tidak ada filter tanggal, setel ke 30 hari terakhir agar database ringan
 if (empty($f_start) && empty($f_end)) {
     $f_start = date('Y-m-d', strtotime('-30 days'));
 }
 
-// Tambah filter tanggal
-if ($f_start) {
+if (!empty($f_start)) {
     $sql .= " AND DATE(lw.created_at) >= '" . $conn->real_escape_string($f_start) . "'";
 }
-if ($f_end) {
+if (!empty($f_end)) {
     $sql .= " AND DATE(lw.created_at) <= '" . $conn->real_escape_string($f_end) . "'";
 }
 
-// Tambah filter status
 if ($f_status === 'cuti') {
     $sql .= " AND (lw.message LIKE '%cuti%' OR lw.message LIKE '%pause%' OR lw.message LIKE '%izin%')";
 } elseif ($f_status === 'tidak_lanjut') {
     $sql .= " AND (lw.message LIKE '%tidak lanjut%' OR lw.message LIKE '%gak lanjut%' OR lw.message LIKE '%berhenti%')";
 }
 
-// Tambah pencarian
-if ($search) {
+if (!empty($search)) {
     $search_escaped = $conn->real_escape_string($search);
     $sql .= " AND (lw.nama LIKE '%" . $search_escaped . "%' 
                 OR lw.nowa LIKE '%" . $search_escaped . "%'
                 OR p.halaqoh LIKE '%" . $search_escaped . "%'
-                OR pg.nama LIKE '%" . $search_escaped . "%')";
+                OR pg1.nama LIKE '%" . $search_escaped . "%'
+                OR pg2.nama LIKE '%" . $search_escaped . "%')";
 }
 
-// Tambahkan LIMIT untuk mencegah memori server meledak (Error 500)
+// WAJIB: ORDER BY dan LIMIT diletakkan HANYA SEKALI di posisi paling akhir!
 $sql .= " ORDER BY lw.created_at DESC LIMIT 500";
-// Tambah filter tanggal
-if ($f_start) {
-    $sql .= " AND DATE(lw.created_at) >= '" . $conn->real_escape_string($f_start) . "'";
-}
-if ($f_end) {
-    $sql .= " AND DATE(lw.created_at) <= '" . $conn->real_escape_string($f_end) . "'";
-}
-
-// Tambah filter status
-if ($f_status === 'cuti') {
-    $sql .= " AND (LOWER(lw.message) LIKE '%cuti%' OR LOWER(lw.message) LIKE '%pause%' OR LOWER(lw.message) LIKE '%izin%')";
-} elseif ($f_status === 'tidak_lanjut') {
-    $sql .= " AND (LOWER(lw.message) LIKE '%tidak lanjut%' OR LOWER(lw.message) LIKE '%gak lanjut%' OR LOWER(lw.message) LIKE '%berhenti%')";
-}
-
-// Tambah pencarian
-if ($search) {
-    $search_escaped = $conn->real_escape_string($search);
-    $sql .= " AND (LOWER(lw.nama) LIKE '%" . strtolower($search_escaped) . "%' 
-                OR lw.nowa LIKE '%" . $search_escaped . "%'
-                OR p.halaqoh LIKE '%" . $search_escaped . "%'
-                OR pg.nama LIKE '%" . $search_escaped . "%')";
-}
-
-$sql .= " ORDER BY lw.created_at DESC";
 
 $result = $conn->query($sql);
 $dataRows = [];
@@ -141,17 +115,15 @@ $summaryHalaqoh = [];
 
 if ($result) {
     while ($row = $result->fetch_assoc()) {
-        // CEK: Jangan tampilkan jika nomor WA ada di tabel pengampu
         $cleanNowa = preg_replace('/\D/', '', $row['nowa'] ?? '');
         if (strpos($cleanNowa, '0') === 0) $cleanNowa = '62' . substr($cleanNowa, 1);
         
         if (isset($pengampuNumbers[$cleanNowa]) || isset($pengampuNumbers[$row['nowa']])) {
-            continue; // Skip nomor pengampu
+            continue;
         }
         
         $msgLower = strtolower($row['message'] ?? '');
         
-        // Tentukan kategori
         $kategori = 'Lainnya';
         if (strpos($msgLower, 'cuti') !== false || strpos($msgLower, 'pause') !== false || strpos($msgLower, 'izin') !== false) {
             $kategori = 'Cuti';
@@ -162,8 +134,9 @@ if ($result) {
         }
         
         $halaqoh = $row['peserta_halaqoh'] ?? $row['pengajar_halaqoh'] ?? '-';
+        // Tentukan nama pengajar yang terdeteksi
+        $nama_pengajar_final = $row['nama_pengajar'] ?? $row['pengajar_langsung'] ?? '-';
         
-        // Summary per halaqoh
         if (!isset($summaryHalaqoh[$halaqoh])) {
             $summaryHalaqoh[$halaqoh] = ['cuti' => 0, 'tidak_lanjut' => 0, 'total' => 0];
         }
@@ -179,7 +152,7 @@ if ($result) {
             'nama' => $row['nama'] ?? '-',
             'nowa' => $row['nowa'] ?? '-',
             'halaqoh' => $halaqoh,
-            'pengajar' => $row['nama_pengajar'] ?? '-',
+            'pengajar' => $nama_pengajar_final,
             'message' => $row['message'] ?? '-',
             'created_at' => $row['created_at'],
             'kategori' => $kategori
