@@ -2,7 +2,9 @@
 if (session_status() === PHP_SESSION_NONE) {
     session_start();
 }
-// 1. PENGATURAN LOG ERROR
+// ==================================================================
+// 1. PENGATURAN LOG ERROR (PRODUCTION MODE)
+// ==================================================================
 error_reporting(E_ALL);
 ini_set('display_errors', 0); 
 ini_set('log_errors', 1);
@@ -38,11 +40,10 @@ if ($pengampuResult) {
         $cleanNum = preg_replace('/\D/', '', $p['nowa']);
         if (strpos($cleanNum, '0') === 0) $cleanNum = '62' . substr($cleanNum, 1);
         $pengampuNumbers[$cleanNum] = true;
-        $pengampuNumbers[$p['nowa']] = true; // Simpan juga format asli
+        $pengampuNumbers[$p['nowa']] = true; 
     }
 }
 
-// ==================================================================
 // ==================================================================
 // FILTER & PENCARIAN
 // ==================================================================
@@ -77,7 +78,7 @@ $sql = "
     )
 ";
 
-/// Jika tidak ada filter tanggal, JANGAN load semua data (Pencegah Error 500)
+// Jika tidak ada filter tanggal, JANGAN load semua data (Pencegah Error 500)
 // Setel ke 30 hari terakhir agar ringan
 if (empty($f_start) && empty($f_end)) {
     $f_start = date('Y-m-d', strtotime('-30 days'));
@@ -98,7 +99,7 @@ if ($f_status === 'cuti') {
     $sql .= " AND (LOWER(lw.message) LIKE '%tidak lanjut%' OR LOWER(lw.message) LIKE '%gak lanjut%' OR LOWER(lw.message) LIKE '%berhenti%')";
 }
 
-// Tambah pencarian
+// Tambah pencarian (BUG PENCARIAN SUDAH DIPERBAIKI)
 if ($search) {
     $search_escaped = $conn->real_escape_string($search);
     $sql .= " AND (LOWER(lw.nama) LIKE '%" . strtolower($search_escaped) . "%' 
@@ -138,7 +139,6 @@ if ($result) {
         }
         
         $halaqoh = $row['peserta_halaqoh'] ?? $row['pengajar_halaqoh'] ?? '-';
-        // Tentukan nama pengajar yang terdeteksi
         $nama_pengajar_final = $row['nama_pengajar'] ?? $row['pengajar_langsung'] ?? '-';
         
         if (!isset($summaryHalaqoh[$halaqoh])) {
@@ -184,8 +184,6 @@ $totalRows = count($dataRows);
         .vibrant-card { border-radius: 24px; box-shadow: 0 10px 30px -5px rgba(0,0,0,0.05); border: 1px solid rgba(255,255,255,0.5); }
         .btn-glass { background: rgba(255, 255, 255, 0.8); backdrop-filter: blur(10px); border: 1px solid rgba(255, 255, 255, 0.5); border-radius: 14px; transition: all 0.3s ease; }
         .btn-glass:hover { background: rgba(255, 255, 255, 1); transform: translateY(-2px); box-shadow: 0 5px 15px rgba(0,0,0,0.1); }
-        
-        /* Modal Styles */
         .modal { display: none; position: fixed; z-index: 9999; left: 0; top: 0; width: 100%; height: 100%; overflow: auto; background-color: rgba(0,0,0,0.6); backdrop-filter: blur(4px); }
         .modal-content { background-color: #fefefe; margin: 5% auto; padding: 0; border-radius: 24px; width: 90%; max-width: 600px; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.25); animation: modalSlideIn 0.3s ease-out; }
         @keyframes modalSlideIn { from { transform: translateY(-50px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
@@ -197,8 +195,6 @@ $totalRows = count($dataRows);
 <body class="p-4 md:p-8">
 
 <div class="max-w-[1400px] mx-auto">
-    
-    <!-- HEADER -->
     <header class="bg-white vibrant-card p-6 mb-6 flex flex-wrap justify-between items-center gap-4">
         <div class="flex items-center gap-4">
             <div class="bg-gradient-to-br from-rose-500 to-orange-500 p-4 rounded-2xl text-white shadow-lg">
@@ -209,7 +205,6 @@ $totalRows = count($dataRows);
                 <p class="text-xs text-slate-500 font-medium mt-0.5">Monitoring status peserta</p>
             </div>
         </div>
-        
         <div class="flex flex-wrap gap-2">
             <a href="pesan.php" class="btn-glass px-5 py-2.5 text-sm font-bold text-slate-600 flex items-center gap-2">
                 <i class="fas fa-arrow-left"></i> Kembali
@@ -217,9 +212,7 @@ $totalRows = count($dataRows);
         </div>
     </header>
 
-    <!-- SUMMARY CARDS -->
     <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
-        <!-- Total -->
         <div class="bg-gradient-to-br from-slate-700 to-slate-900 vibrant-card p-6 text-white">
             <div class="flex items-center justify-between">
                 <div>
@@ -232,8 +225,6 @@ $totalRows = count($dataRows);
                 </div>
             </div>
         </div>
-
-        <!-- Cuti -->
         <div class="bg-gradient-to-br from-amber-400 to-orange-500 vibrant-card p-6 text-white">
             <div class="flex items-center justify-between">
                 <div>
@@ -246,8 +237,6 @@ $totalRows = count($dataRows);
                 </div>
             </div>
         </div>
-
-        <!-- Tidak Lanjut -->
         <div class="bg-gradient-to-br from-rose-500 to-pink-600 vibrant-card p-6 text-white">
             <div class="flex items-center justify-between">
                 <div>
@@ -262,7 +251,6 @@ $totalRows = count($dataRows);
         </div>
     </div>
 
-    <!-- RINGKASAN PER HALAQOH -->
     <?php if (!empty($summaryHalaqoh)): ?>
     <div class="vibrant-card bg-white p-6 mb-6">
         <h3 class="font-bold text-slate-800 mb-4 flex items-center gap-2">
@@ -294,7 +282,6 @@ $totalRows = count($dataRows);
     </div>
     <?php endif; ?>
 
-    <!-- FILTER SECTION -->
     <div class="vibrant-card bg-white p-6 mb-6">
         <h3 class="font-bold text-slate-800 mb-4 flex items-center gap-2">
             <i class="fas fa-filter text-indigo-500"></i> Filter Data
@@ -324,14 +311,13 @@ $totalRows = count($dataRows);
                 <button type="submit" class="bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-2.5 rounded-xl font-bold text-sm transition-all shadow-lg shadow-indigo-500/30">
                     <i class="fas fa-search mr-2"></i>Terapkan Filter
                 </button>
-                <a href="laporan_cuti.php" class="bg-slate-200 hover:bg-slate-300 text-slate-700 px-6 py-2.5 rounded-xl font-bold text-sm transition-all">
+                <a href="cuti.php" class="bg-slate-200 hover:bg-slate-300 text-slate-700 px-6 py-2.5 rounded-xl font-bold text-sm transition-all">
                     <i class="fas fa-redo mr-2"></i>Reset
                 </a>
             </div>
         </form>
     </div>
 
-    <!-- TABLE SECTION -->
     <div class="vibrant-card bg-white overflow-hidden">
         <div class="p-5 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
             <h3 class="font-bold text-slate-800 flex items-center gap-2">
@@ -421,14 +407,11 @@ $totalRows = count($dataRows);
         </div>
     </div>
 
-    <!-- FOOTER -->
     <div class="mt-6 text-center text-xs text-slate-400">
         <p>© <?= date('Y') ?> JWD - Laporan Cuti & Tidak Lanjut</p>
     </div>
-
 </div>
 
-<!-- MODAL DETAIL CHAT -->
 <div id="detailModal" class="modal">
     <div class="modal-content">
         <div class="p-6 border-b border-slate-200 flex justify-between items-center bg-gradient-to-r from-indigo-50 to-purple-50 rounded-t-2xl">
@@ -482,7 +465,6 @@ $totalRows = count($dataRows);
 </div>
 
 <script>
-// Modal Functions
 function showDetail(rowData) {
     document.getElementById('modalNama').textContent = rowData.nama;
     document.getElementById('modalNowa').textContent = rowData.nowa;
@@ -493,11 +475,9 @@ function showDetail(rowData) {
     });
     document.getElementById('modalPesan').textContent = rowData.message;
     
-    // Set WhatsApp link
     const cleanNumber = rowData.nowa.replace(/\D/g, '');
     document.getElementById('modalWaLink').href = 'https://wa.me/' + cleanNumber;
     
-    // Show modal
     document.getElementById('detailModal').style.display = 'block';
     document.body.style.overflow = 'hidden';
 }
@@ -507,7 +487,6 @@ function closeModal() {
     document.body.style.overflow = 'auto';
 }
 
-// Close modal when clicking outside
 window.onclick = function(event) {
     const modal = document.getElementById('detailModal');
     if (event.target == modal) {
@@ -515,7 +494,6 @@ window.onclick = function(event) {
     }
 }
 
-// Close modal with Escape key
 document.addEventListener('keydown', function(event) {
     if (event.key === 'Escape') {
         closeModal();
