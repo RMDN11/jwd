@@ -46,14 +46,9 @@ $f_end = is_string($_GET['to'] ?? null) ? $_GET['to'] : '';
 $f_status = is_string($_GET['status'] ?? null) ? $_GET['status'] : ''; 
 $search = is_string($_GET['search'] ?? null) ? $_GET['search'] : '';
 
-// BUILD QUERY UTAMA
 $sql = "
     SELECT 
-        lw.id,
-        lw.nowa,
-        lw.nama,
-        lw.message,
-        lw.created_at,
+        lw.id, lw.nowa, lw.nama, lw.message, lw.created_at,
         p.halaqoh as peserta_halaqoh,
         pg1.nama as nama_pengajar,
         pg1.halaqoh as pengajar_halaqoh,
@@ -62,26 +57,19 @@ $sql = "
     LEFT JOIN peserta p ON p.nowa = lw.nowa
     LEFT JOIN pengampu pg1 ON (p.halaqoh = pg1.halaqoh AND p.halaqoh != '')
     LEFT JOIN pengampu pg2 ON (pg2.nowa = lw.nowa AND pg2.nowa != '')
-    WHERE (
-        lw.message LIKE '%cuti%' 
-        OR lw.message LIKE '%tidak lanjut%'
-        OR lw.message LIKE '%gak lanjut%'
-        OR lw.message LIKE '%berhenti%'
-        OR lw.message LIKE '%pause%'
-        OR lw.message LIKE '%izin tidak%'
+    WHERE 1=1 
+    AND (
+        lw.message LIKE '%cuti%' OR lw.message LIKE '%tidak lanjut%'
+        OR lw.message LIKE '%gak lanjut%' OR lw.message LIKE '%berhenti%'
+        OR lw.message LIKE '%pause%' OR lw.message LIKE '%izin tidak%'
     )
 ";
 
 if (empty($f_start) && empty($f_end)) {
-    $f_start = date('Y-m-d', strtotime('-30 days'));
-}
-
-// OPTIMASI: Ganti fungsi DATE() dengan format DateTime agar MySQL Index berfungsi (Anti Timeout)
-if ($f_start) {
-    $sql .= " AND lw.created_at >= '" . $conn->real_escape_string($f_start) . " 00:00:00'";
-}
-if ($f_end) {
-    $sql .= " AND lw.created_at <= '" . $conn->real_escape_string($f_end) . " 23:59:59'";
+    $sql .= " AND lw.created_at >= '" . date('Y-m-d', strtotime('-30 days')) . "'";
+} else {
+    if ($f_start) $sql .= " AND DATE(lw.created_at) >= '" . $conn->real_escape_string($f_start) . "'";
+    if ($f_end) $sql .= " AND DATE(lw.created_at) <= '" . $conn->real_escape_string($f_end) . "'";
 }
 
 if ($f_status === 'cuti') {
@@ -90,13 +78,9 @@ if ($f_status === 'cuti') {
     $sql .= " AND (LOWER(lw.message) LIKE '%tidak lanjut%' OR LOWER(lw.message) LIKE '%gak lanjut%' OR LOWER(lw.message) LIKE '%berhenti%')";
 }
 
-if ($search) {
-    $search_escaped = $conn->real_escape_string($search);
-    $sql .= " AND (LOWER(lw.nama) LIKE '%" . strtolower($search_escaped) . "%' 
-                OR lw.nowa LIKE '%" . $search_escaped . "%'
-                OR p.halaqoh LIKE '%" . $search_escaped . "%'
-                OR LOWER(pg1.nama) LIKE '%" . strtolower($search_escaped) . "%'
-                OR LOWER(pg2.nama) LIKE '%" . strtolower($search_escaped) . "%')";
+if (!empty($search)) {
+    $s = $conn->real_escape_string($search);
+    $sql .= " AND (LOWER(lw.nama) LIKE '%$s%' OR lw.nowa LIKE '%$s%' OR p.halaqoh LIKE '%$s%' OR LOWER(pg1.nama) LIKE '%$s%' OR LOWER(pg2.nama) LIKE '%$s%')";
 }
 
 $sql .= " ORDER BY lw.created_at DESC LIMIT 500";
