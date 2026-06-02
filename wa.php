@@ -11,7 +11,7 @@ $error_message = '';
 
 // --- LOGIKA UTAMA: JIKA SUDAH LOGIN, LANGSUNG LEMPAR KE DASHBOARD ---
 if (isset($_SESSION['logged_in']) && $_SESSION['logged_in'] === true) {
-    header("Location: dashboard.php");
+    header("Location: pesan.php");
     exit();
 }
 
@@ -28,7 +28,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $_SESSION['username'] = $username;
         
         // DIALIKAN UTAMA KE DASHBOARD NEW
-        header("Location: dashboard.php");
+        header("Location: pesan.php");
         exit();
     } else {
         $error_message = "Username dan password wajib diisi!";
@@ -171,7 +171,7 @@ $cache_buster = time();
     </div>
 
     <div class="text-center mt-6 animate-fade-up delay-3">
-      <p class="text-[10px] text-slate-500 tracking-widest uppercase font-bold">© 2026 JWD WA ENGINE</p>
+      <p class="text-[10px] text-slate-500 tracking-widest uppercase font-bold">© 2026 HAN</p>
     </div>
 
   </div>
