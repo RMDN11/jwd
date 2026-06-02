@@ -36,11 +36,7 @@ $tabs = [
         'file'  => 'manage_templates.php',
         'icon'  => 'ph-layout-bold'
     ],
-    'testimoni' => [
-        'title' => 'Testimoni User',
-        'file'  => 'testimoni.php',
-        'icon'  => 'ph-chat-teardrop-text-bold'
-    ]
+
 ];
 
 // 2. Ambil tab aktif saat ini dari parameter URL, jika tidak ada, arahkan ke 'wa'
@@ -117,7 +113,7 @@ $cache_buster = time();
         <img src="LOGOJWD.png?v=<?= $cache_buster ?>" alt="Logo JWD" class="w-full h-full object-contain">
       </div>
       <div>
-        <h2 class="text-base font-bold text-white tracking-tight">JWD Platform</h2>
+        <h2 class="text-base font-bold text-white tracking-tight">JWD Pesan</h2>
         <p class="text-xs text-zinc-500">Core Administration</p>
       </div>
     </div>
