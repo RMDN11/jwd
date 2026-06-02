@@ -6,12 +6,7 @@ if (session_status() == PHP_SESSION_NONE) {
 
 // 1. Daftarkan seluruh halaman pilihan Anda (Testimoni TETAP DIHAPUS sesuai permintaan sebelumnya)
 $tabs = [
-    'wa' => [
-        'title' => 'WhatsApp Gateway',
-        'file'  => 'wa.php',
-        'icon'  => 'ph-bold ph-whatsapp-logo',
-        'color' => 'bg-[#25D366]' // Signature Color per modul untuk aksen ikon yang colorful
-    ],
+    
     'pesan' => [
         'title' => 'Kirim Pesan Massal',
         'file'  => 'pesan.php',
